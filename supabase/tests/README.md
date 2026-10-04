@@ -17,6 +17,7 @@ psql -d uji_dompetrumah -f supabase/tests/00_stub_supabase.sql
 
 # 3. Migration yang sebenarnya
 psql -d uji_dompetrumah -f supabase/migrations/0001_fondasi.sql
+psql -d uji_dompetrumah -f supabase/migrations/0002_transaksi.sql
 
 # 4. Data uji
 psql -d uji_dompetrumah -c "
@@ -34,6 +35,8 @@ insert into public.audit_logs (aksi,tabel,aktor_email) values ('login','auth','a
 
 # 5. Jalankan pengujian
 psql -d uji_dompetrumah -f supabase/tests/01_uji_rls.sql
+psql -d uji_dompetrumah -f supabase/tests/02_uji_transaksi.sql
+psql -d uji_dompetrumah -f supabase/tests/03_uji_alur_approval.sql
 ```
 
 ## Hasil yang diharapkan
@@ -53,3 +56,24 @@ psql -d uji_dompetrumah -f supabase/tests/01_uji_rls.sql
 Pengujian terpisah yang juga sudah lolos: pengguna biasa yang mencoba menulis
 audit log atas nama admin akan tetap tercatat dengan emailnya sendiri, karena
 kolom aktor ditimpa oleh trigger `trg_audit_aktor`.
+
+## 02 — transaksi dan approval (Fase 2)
+
+| Yang diuji | Harapan |
+| --- | --- |
+| User input Rp400.000 | status `aktif` |
+| User input Rp600.000, memaksa status `aktif` | dipaksa jadi `pending` |
+| User mencatat atas nama orang lain | pencatat dipaksa jadi dirinya sendiri |
+| Supervisor input Rp900.000 | tetap `aktif`, tanpa approval |
+| User mengubah transaksi | 0 baris (disaring RLS) |
+| User menyetujui permintaannya sendiri | 0 baris |
+| Request kedua untuk transaksi yang sama | **ditolak** unique index |
+| User membaca notifikasi milik supervisor | 0 baris |
+
+## 03 — alur approval ujung ke ujung (Fase 2)
+
+Meniru langkah yang dijalankan server action saat supervisor menekan Setujui
+atau Tolak, untuk memastikan RLS tidak menghalangi penerapan perubahan:
+pencatatan pending menjadi aktif, usulan ubah tertulis ke transaksi, permintaan
+hapus menjadi soft delete, pencatatan yang ditolak bertanda `ditolak`, dan total
+hanya menjumlahkan transaksi berstatus `aktif`.

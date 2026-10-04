@@ -9,6 +9,8 @@ export type AksiAudit =
   | "activate"
   | "deactivate"
   | "role_change"
+  | "approve"
+  | "reject"
   | "import";
 
 type ParamAudit = {

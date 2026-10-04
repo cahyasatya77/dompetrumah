@@ -1,35 +1,68 @@
 # DompetRumah
 
-Aplikasi web pencatatan pengeluaran rumah tangga. Repo ini berisi **Fase 1 (Fondasi)**:
-setup proyek, login Google, master pengguna & role, master kategori, layout responsif,
-dan audit log.
+Aplikasi web pencatatan pengeluaran rumah tangga. Repo ini berisi **Fase 1 (Fondasi)**
+dan **Fase 2 (Transaksi inti)**.
 
-Semua layanan memakai tier gratis: Supabase (database + auth) dan Vercel (hosting).
+Semua layanan memakai tier gratis: Supabase (database + auth + storage) dan Vercel.
 
 ---
 
-## Isi Fase 1
+## Yang sudah jalan
+
+**Fase 1 — Fondasi**
 
 | Fitur | Status |
 | --- | --- |
 | Setup Next.js 16 (App Router) + TypeScript + Tailwind v4 | Selesai |
 | Login Google lewat Supabase Auth, hanya email terdaftar | Selesai |
 | Master pengguna & role (user / supervisor / admin) | Selesai |
-| Aktifkan & nonaktifkan pengguna | Selesai |
 | Master kategori (CRUD) + 13 kategori awal | Selesai |
 | Layout responsif: sidebar desktop, bottom nav HP, mode gelap | Selesai |
 | Audit log (admin) + Row Level Security | Selesai |
-| Input pengeluaran, approval, laporan, notifikasi | Fase 2–5 |
+
+**Fase 2 — Transaksi inti**
+
+| Fitur | Status |
+| --- | --- |
+| Input pengeluaran: nominal × kuantiti, satuan, total otomatis | Selesai |
+| Lampiran struk JPG/PNG/PDF maks 5 MB, foto dikompres di browser | Selesai |
+| Workflow approval untuk input user di atas Rp500.000 | Selesai |
+| Permintaan ubah & hapus oleh user, wajib beralasan | Selesai |
+| Halaman approval supervisor + perbandingan sebelum/sesudah | Selesai |
+| Notifikasi in-app dengan badge belum dibaca | Selesai |
+| Daftar transaksi dengan filter bulan, kategori, dan pencatat | Selesai |
+| Laporan bulanan, export, chart | Fase 3 |
+| Email & WhatsApp, reminder, import Sheets | Fase 4 |
 
 ### Hak akses yang sudah berlaku
 
 | Aksi | User | Supervisor | Admin |
 | --- | --- | --- | --- |
-| Lihat dashboard | Ya | Ya | Ya |
+| Lihat dashboard & semua transaksi | Ya | Ya | Ya |
+| Input pengeluaran | Ya* | Ya | Ya |
+| Ubah / hapus transaksi | Request saja | Ya | Ya |
+| Setujui / tolak request | Tidak | Ya | Ya |
 | Kelola master kategori | Tidak | Ya | Ya |
 | Hapus kategori permanen | Tidak | Tidak | Ya |
 | Kelola pengguna & role | Tidak | Tidak | Ya |
 | Lihat audit log | Tidak | Tidak | Ya |
+
+\* Input user dengan total di atas Rp500.000 berstatus PENDING sampai disetujui
+supervisor, dan belum dihitung dalam total pengeluaran.
+
+### Cara kerja approval
+
+Batas Rp500.000 dipaksakan di database lewat trigger `trg_expenses_aturan`,
+bukan hanya di form. Mengakali tampilan tidak membuat transaksi lolos:
+status tetap jadi `pending`. Hal yang sama berlaku untuk kolom pencatat —
+selalu diisi dari sesi yang sedang login.
+
+Aturan lain yang dijaga database: satu transaksi hanya boleh punya satu
+permintaan yang menggantung, dan pengaju tidak bisa menyetujui permintaannya
+sendiri.
+
+Penghapusan memakai soft delete, sehingga data tetap ada untuk audit dan
+laporan historis.
 
 ---
 
@@ -46,7 +79,9 @@ Semua layanan memakai tier gratis: Supabase (database + auth) dan Vercel (hostin
 
 1. Di dashboard Supabase, buka menu **SQL Editor** → **New query**.
 2. Salin seluruh isi `supabase/migrations/0001_fondasi.sql`, tempel, klik **Run**.
-3. Buka `supabase/seed.sql`, **ganti email pada baris pertama dengan email Google
+3. Ulangi untuk `supabase/migrations/0002_transaksi.sql`. File ini sekaligus
+   membuat bucket Storage privat bernama `struk` untuk lampiran.
+4. Buka `supabase/seed.sql`, **ganti email pada baris pertama dengan email Google
    Anda**, lalu jalankan juga di SQL Editor. Email ini menjadi akun admin pertama.
 
 > Tanpa langkah seed ini tidak ada satu pun email yang boleh masuk, sehingga Anda
@@ -142,7 +177,10 @@ src/
     akses-ditolak/              halaman penolakan
     (app)/                      halaman yang butuh login
       layout.tsx                cek profil aktif, bungkus AppShell
-      dashboard/                ringkasan
+      dashboard/                ringkasan + transaksi terbaru
+      pengeluaran/              daftar, catat baru, detail, request ubah/hapus
+      approval/                 antrean persetujuan (supervisor & admin)
+      notifikasi/               notifikasi in-app
       kategori/                 master kategori (supervisor & admin)
       pengguna/                 master pengguna (admin)
       audit/                    audit log (admin)
@@ -150,6 +188,9 @@ src/
   lib/
     auth.ts                     wajibProfil / wajibRole
     audit.ts                    penulisan audit log
+    notifikasi.ts               pengiriman notifikasi in-app
+    kompres.ts                  kompresi foto struk di browser
+    konstanta.ts                batas approval, bucket, batas ukuran file
     validations.ts              skema zod
     supabase/                   klien server, browser, dan service role
 ```
@@ -174,7 +215,6 @@ src/
 
 | Fase | Isi |
 | --- | --- |
-| 2 | Input pengeluaran, lampiran struk, workflow approval |
 | 3 | Laporan bulanan + opening balance, export Excel/PDF, dashboard chart |
 | 4 | Notifikasi email & WhatsApp, reminder 21.00 WIB, import Google Sheets |
 | 5 | Chat AI, input pengeluaran via WhatsApp |

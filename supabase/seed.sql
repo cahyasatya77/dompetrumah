@@ -8,9 +8,9 @@
 -- =============================================================
 
 insert into public.profiles (email, nama, role, aktif) values
-  ('ganti.dengan.email.anda@gmail.com', 'Admin Keluarga', 'admin',      true),
-  ('supervisor.keluarga@gmail.com',      'Supervisor',     'supervisor', true),
-  ('anggota.keluarga@gmail.com',         'Anggota',        'user',       true)
+  ('cahyasatya77@gmail.com', 'Admin Keluarga', 'admin',      true),
+  ('dewianggraini275@gmail.com',      'Supervisor',     'supervisor', true),
+  ('cahyasatya66@gmail.com',         'Anggota',        'user',       true)
 on conflict do nothing;
 
 -- Kategori dan satuan sudah ikut terisi di 0001_fondasi.sql.

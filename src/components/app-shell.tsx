@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Wallet } from "lucide-react";
+import { Bell, LogOut, Plus, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -16,9 +16,11 @@ import { cn, inisial } from "@/lib/utils";
  */
 export function AppShell({
   profil,
+  belumDibaca,
   children,
 }: {
   profil: Profile;
+  belumDibaca: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -52,7 +54,12 @@ export function AppShell({
               )}
             >
               <m.ikon className="h-4 w-4 shrink-0" aria-hidden />
-              {m.label}
+              <span className="flex-1">{m.label}</span>
+              {m.href === "/notifikasi" && belumDibaca > 0 && (
+                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  {belumDibaca}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
@@ -107,12 +114,37 @@ export function AppShell({
       {/* Konten */}
       <div className="md:pl-64">
         <div className="hidden h-16 items-center justify-end gap-2 border-b border-border px-6 md:flex">
+          <Link
+            href="/notifikasi"
+            aria-label={
+              belumDibaca > 0
+                ? `Notifikasi, ${belumDibaca} belum dibaca`
+                : "Notifikasi"
+            }
+            className="relative rounded-[var(--radius-app)] p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <Bell className="h-4 w-4" aria-hidden />
+            {belumDibaca > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                {belumDibaca > 9 ? "9+" : belumDibaca}
+              </span>
+            )}
+          </Link>
           <TemaToggle />
         </div>
         <main className="mx-auto w-full max-w-5xl px-4 pt-5 pb-28 sm:px-6 md:pb-10">
           {children}
         </main>
       </div>
+
+      {/* Tombol catat cepat - hanya HP */}
+      <Link
+        href="/pengeluaran/baru"
+        aria-label="Catat pengeluaran"
+        className="fixed right-4 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:opacity-90 md:hidden"
+      >
+        <Plus className="h-6 w-6" aria-hidden />
+      </Link>
 
       {/* Bottom navigation - hanya HP */}
       <nav className="pb-safe fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card md:hidden">
@@ -122,11 +154,16 @@ export function AppShell({
               <Link
                 href={m.href}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition",
+                  "relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition",
                   aktif(m.href) ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 <m.ikon className="h-5 w-5" aria-hidden />
+                {m.href === "/notifikasi" && belumDibaca > 0 && (
+                  <span className="absolute top-1.5 right-1/2 translate-x-3 rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
+                    {belumDibaca > 9 ? "9+" : belumDibaca}
+                  </span>
+                )}
                 {m.labelPendek}
               </Link>
             </li>
