@@ -8,10 +8,14 @@ const dasarInput =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring " +
   "disabled:cursor-not-allowed disabled:opacity-50";
 
+// React 19 memperlakukan ref sebagai prop biasa, jadi tidak perlu forwardRef;
+// tipenya saja yang harus disebutkan supaya TypeScript menerimanya.
 export function Input({
   className,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  ref?: React.Ref<HTMLInputElement>;
+}) {
   return <input className={cn(dasarInput, "h-10", className)} {...props} />;
 }
 

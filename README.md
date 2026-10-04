@@ -1,8 +1,8 @@
 # DompetRumah
 
-Aplikasi web pencatatan pengeluaran rumah tangga. Repo ini berisi **Fase 1 (Fondasi)**,
-**Fase 2 (Transaksi inti)**, **Fase 3 (Laporan & dashboard)**, dan
-**Fase 4 (Notifikasi & integrasi)**.
+Aplikasi web pencatatan pengeluaran rumah tangga. Kelima fase pada rencana awal
+sudah dikerjakan: fondasi, transaksi inti, laporan & dashboard, notifikasi &
+integrasi, serta chat AI dan input lewat WhatsApp.
 
 Semua layanan memakai tier gratis: Supabase (database + auth + storage) dan Vercel.
 
@@ -53,7 +53,15 @@ Semua layanan memakai tier gratis: Supabase (database + auth + storage) dan Verc
 | Reminder harian 21.00 WIB via Vercel Cron | Selesai |
 | Log pengiriman email & WhatsApp (admin) | Selesai |
 | Import kategori, pengguna, dan saldo awal dari Google Sheets | Selesai |
-| Chat AI dan input lewat WhatsApp | Fase 5 |
+
+**Fase 5 — Chat AI & input WhatsApp**
+
+| Fitur | Status |
+| --- | --- |
+| Chat AI menjawab pertanyaan tentang data pengeluaran | Selesai |
+| Input pengeluaran lewat WhatsApp dengan format `#catat\|…` | Selesai |
+| Balasan konfirmasi dan pesan kesalahan yang menuntun | Selesai |
+| Log pesan masuk WhatsApp (admin) | Selesai |
 
 ### Hak akses yang sudah berlaku
 
@@ -118,6 +126,59 @@ Setiap import selalu melewati pratinjau: tiap baris ditandai *baru*,
 *diperbarui*, *lewati* (sudah ada), atau *galat* beserta alasannya. Hanya baris
 baru dan yang diperbarui yang disimpan.
 
+### Chat AI
+
+Model tidak pernah menyentuh database. Aplikasi menghitung dulu rekap bulan
+berjalan, bulan lalu, tren enam bulan, dan daftar transaksi bulan ini —
+semuanya dibaca dengan klien sesi pengguna, jadi Row Level Security tetap yang
+menentukan apa yang boleh terlihat — lalu menyerahkannya sebagai konteks.
+
+Akibatnya model tidak bisa mengarang angka dari database, karena ia memang
+tidak punya aksesnya. Kalau ditanya periode yang tidak ada di konteks, ia
+diinstruksikan mengatakan datanya tidak tersedia, bukan menebak.
+
+Modul AI ada di `src/lib/ai/`. Mengganti Gemini dengan Claude cukup menulis
+satu fungsi dengan bentuk yang sama lalu mendaftarkannya di `jawab()`.
+
+Server Gemini gratis cukup sering menjawab HTTP 503 karena sedang penuh. Itu
+bukan masalah konfigurasi, jadi permintaan diulang sampai tiga kali dengan jeda
+yang makin panjang (1 lalu 2 detik). Yang tidak diulang: kunci salah, model
+tidak ada, dan kuota harian habis — mengulang tidak akan memperbaikinya.
+
+### Input pengeluaran lewat WhatsApp
+
+Format pesan:
+
+```
+#catat|tanggal|kategori|harga satuan|kuantiti|satuan|keterangan
+```
+
+Contoh:
+
+```
+#catat|2026-10-03|Bensin|20000|2|liter|isi bensin motor
+#catat|hari ini|Snack|15000|1||
+```
+
+Tanggal menerima `2026-10-03`, `3/10/2026`, atau kata `hari ini`. Kolom satuan
+dan keterangan boleh dikosongkan.
+
+Pengaman yang berlaku: nomor pengirim harus terdaftar di profil pengguna yang
+aktif, kategori harus ada (kalau tidak, balasannya memuat daftar kategori yang
+tersedia), tanggal di masa depan ditolak, dan aturan batas Rp500.000 tetap
+berlaku sehingga pencatatan besar dari WhatsApp pun masuk antrean approval.
+
+Pesan yang tidak diawali `#catat` diabaikan tanpa balasan, supaya obrolan
+biasa di nomor itu tidak terganggu.
+
+Setiap pesan masuk — termasuk yang ditolak — tersimpan di
+`wa_inbound_messages`, sehingga keluhan "sudah saya kirim kok tidak masuk"
+bisa ditelusuri.
+
+> Webhook ini baru menerima pesan sungguhan setelah gateway WhatsApp Anda
+> aktif dan diarahkan ke `/api/wa/masuk`. Selama `WA_PROVIDER=log`, balasannya
+> hanya tercatat di log server.
+
 ---
 
 ## Langkah setup
@@ -136,7 +197,8 @@ baru dan yang diperbarui yang disimpan.
 3. Ulangi untuk `supabase/migrations/0002_transaksi.sql` (sekaligus membuat
    bucket Storage privat `struk` untuk lampiran) lalu
    `supabase/migrations/0003_laporan.sql`, lalu
-   `supabase/migrations/0004_notifikasi.sql`.
+   `supabase/migrations/0004_notifikasi.sql`, lalu
+   `supabase/migrations/0005_wa_masuk.sql`.
 4. Buka `supabase/seed.sql`, **ganti email pada baris pertama dengan email Google
    Anda**, lalu jalankan juga di SQL Editor. Email ini menjadi akun admin pertama.
 
@@ -191,6 +253,9 @@ jalan, pesan hanya dicatat ke log server):
 | `WA_PROVIDER` | `log` selama belum pakai gateway, atau `fonnte` |
 | `FONNTE_TOKEN` | token dari fonnte.com, hanya bila `WA_PROVIDER=fonnte` |
 | `CRON_SECRET` | kata sandi acak buatan sendiri, untuk melindungi endpoint reminder |
+| `GEMINI_API_KEY` | kunci gratis dari <https://aistudio.google.com/apikey>; kosong = halaman Tanya AI menjelaskan bahwa AI belum tersambung |
+| `GEMINI_MODEL` | nama model; kalau ditolak "tidak ditemukan", jalankan `npm run uji:ai` untuk melihat mana yang tersedia bagi kunci Anda |
+| `WA_WEBHOOK_SECRET` | kata sandi acak buatan sendiri, dikirim gateway WhatsApp sebagai header `x-webhook-secret` |
 
 ### 5. Jalankan di lokal
 
@@ -213,6 +278,15 @@ Anda masukkan di `seed.sql`.
 5. Reminder harian aktif otomatis setelah deploy — Vercel membaca `vercel.json`.
    Pastikan `CRON_SECRET` sudah diisi di environment variables Vercel, kalau
    tidak endpoint-nya menolak semua panggilan.
+
+Untuk memastikan konfigurasi email benar tanpa menjalankan aplikasi:
+
+```bash
+node scripts/uji-email.mjs
+```
+
+Skrip itu login ke Gmail lalu mengirim satu email percobaan ke alamat Anda
+sendiri, dan menjelaskan penyebabnya bila gagal.
 
 Untuk menguji reminder tanpa menunggu pukul 21.00:
 
@@ -256,6 +330,7 @@ src/
       dashboard/                ringkasan, tren, transaksi terbaru
       laporan/                  laporan bulanan, saldo awal, grafik
       import/                   import Google Sheets (admin)
+      chat/                     tanya AI soal pengeluaran
       pengeluaran/              daftar, catat baru, detail, request ubah/hapus
       approval/                 antrean persetujuan (supervisor & admin)
       notifikasi/               notifikasi in-app
@@ -265,6 +340,10 @@ src/
     cetak/laporan/              tampilan khusus cetak (tanpa sidebar)
     api/laporan/excel/          route export .xlsx
     api/cron/reminder/          endpoint reminder harian (Vercel Cron)
+    api/wa/masuk/               webhook pesan WhatsApp masuk
+scripts/
+  uji-email.mjs                 uji konfigurasi Gmail
+  uji/uji-parser-wa.ts          uji parser pesan WhatsApp
   components/                   AppShell, navigasi, tema, komponen UI
     chart/                      grafik kategori dan tren bulanan
   lib/
@@ -275,6 +354,8 @@ src/
     csv.ts                      pembaca CSV dan normalisasi tautan Sheets
     kirim/email.ts              pengirim email (Gmail SMTP)
     kirim/whatsapp.ts           pengirim WhatsApp (bisa ganti provider)
+    ai/                         modul AI dan penyusun konteks data
+    wa/parser.ts                pembaca pesan #catat
     notifikasi.ts               pengiriman notifikasi in-app
     kompres.ts                  kompresi foto struk di browser
     konstanta.ts                batas approval, bucket, batas ukuran file
@@ -298,8 +379,27 @@ src/
 
 ---
 
-## Fase berikutnya
+## Menjalankan pengujian
 
-| Fase | Isi |
+```bash
+npm run uji:wa      # parser pesan WhatsApp
+npm run uji:email   # kirim satu email percobaan
+npm run uji:ai        # daftar model Gemini yang tersedia, lalu coba panggil
+npm run uji:ai-ulang  # perilaku percobaan ulang saat server Gemini sibuk
+```
+
+`npm run uji:ai` berguna saat chat AI mengeluh modelnya tidak ditemukan: nama
+model Gemini berubah dari waktu ke waktu dan berbeda antar akun, jadi skrip itu
+menanyakan langsung ke Google mana yang tersedia untuk kunci Anda.
+
+Pengujian Row Level Security dan aturan database ada di `supabase/tests/`;
+caranya dijelaskan di `supabase/tests/README.md`.
+
+## Yang belum dikerjakan
+
+| Hal | Catatan |
 | --- | --- |
-| 5 | Chat AI untuk bertanya soal data, lalu input pengeluaran via WhatsApp |
+| Gateway WhatsApp sungguhan | Modul pengirim dan webhook sudah siap; tinggal isi `WA_PROVIDER` dan tokennya |
+| WhatsApp Cloud API resmi | Untuk produksi, tambahkan driver di `src/lib/kirim/whatsapp.ts` |
+| Lampiran struk lewat WhatsApp | Saat ini hanya lewat aplikasi |
+| Anggaran per kategori | Saldo awal masih satu angka per bulan |

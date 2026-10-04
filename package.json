@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "uji:wa": "node --experimental-strip-types --import ./scripts/uji/daftar-loader.mjs ./scripts/uji/uji-parser-wa.ts",
+    "uji:email": "node scripts/uji-email.mjs",
+    "uji:ai": "node scripts/uji-ai.mjs",
+    "uji:ai-ulang": "node --experimental-strip-types --import ./scripts/uji/daftar-loader.mjs ./scripts/uji/uji-ai-ulang.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

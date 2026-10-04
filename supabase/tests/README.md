@@ -20,6 +20,7 @@ psql -d uji_dompetrumah -f supabase/migrations/0001_fondasi.sql
 psql -d uji_dompetrumah -f supabase/migrations/0002_transaksi.sql
 psql -d uji_dompetrumah -f supabase/migrations/0003_laporan.sql
 psql -d uji_dompetrumah -f supabase/migrations/0004_notifikasi.sql
+psql -d uji_dompetrumah -f supabase/migrations/0005_wa_masuk.sql
 
 # 4. Data uji
 psql -d uji_dompetrumah -c "
@@ -41,6 +42,7 @@ psql -d uji_dompetrumah -f supabase/tests/02_uji_transaksi.sql
 psql -d uji_dompetrumah -f supabase/tests/03_uji_alur_approval.sql
 psql -d uji_dompetrumah -f supabase/tests/04_uji_laporan.sql
 psql -d uji_dompetrumah -f supabase/tests/05_uji_notifikasi.sql
+psql -d uji_dompetrumah -f supabase/tests/06_uji_wa_masuk.sql
 ```
 
 ## Hasil yang diharapkan
@@ -103,6 +105,20 @@ hanya menjumlahkan transaksi berstatus `aktif`.
 | User nonaktif menulis log pengiriman | **ditolak** RLS |
 | Kanal atau status di luar daftar | **ditolak** check constraint |
 | Siapa perlu diingatkan | yang mencatat hari ini dikecualikan; transaksi kemarin dan yang sudah dihapus tidak dianggap mencatat; user nonaktif tidak diingatkan |
+
+## 06 — pesan WhatsApp masuk (Fase 5)
+
+| Yang diuji | Harapan |
+| --- | --- |
+| Dua pengguna dengan nomor WhatsApp sama | **ditolak** unique index |
+| Dua pengguna tanpa nomor | boleh (unique index hanya berlaku bila terisi) |
+| Supervisor membaca log pesan masuk | 0 baris (hanya admin) |
+| User menulis log pesan masuk | **ditolak** RLS |
+| Status di luar daftar | **ditolak** check constraint |
+
+Parser pesan `#catat` diuji di sisi TypeScript lewat `npm run uji:wa`:
+tanggal dalam tiga bentuk, nominal bertitik, kuantiti desimal berkoma, spasi
+berlebih, sampai penolakan tanggal masa depan dan kuantiti nol.
 
 Pembaca CSV dan normalisasi tautan Google Sheets diuji terpisah di sisi
 TypeScript (koma di dalam kutip, kutip ganda, CRLF, BOM, baris baru di dalam

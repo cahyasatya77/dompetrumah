@@ -6,14 +6,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Format Rupiah: 1250000 -> "Rp1.250.000" */
+/**
+ * Format Rupiah: 1250000 -> "Rp1.250.000"
+ *
+ * Sengaja tidak memakai Intl.NumberFormat dengan style "currency": data
+ * locale Node dan browser bisa berbeda, sehingga ada lingkungan yang
+ * menyisipkan spasi tak-putus setelah "Rp". Selisih sekecil itu membuat
+ * React mengeluh soal ketidakcocokan hidrasi dan membuat angka di layar
+ * berbeda dengan angka di pesan WhatsApp. Dihitung sendiri, hasilnya
+ * sama di mana pun.
+ */
 export function formatRupiah(nilai: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(nilai);
+  const bulat = Math.round(Math.abs(nilai));
+  const digit = bulat.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${nilai < 0 ? "-" : ""}Rp${digit}`;
 }
 
 /** Format tanggal Indonesia: "3 Okt 2026" */

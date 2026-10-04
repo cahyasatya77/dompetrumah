@@ -5,10 +5,17 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
 
 /**
  * Rute yang boleh diakses tanpa sesi login.
- * /api/cron dipanggil Vercel Cron tanpa cookie; endpoint itu menjaga
- * dirinya sendiri dengan CRON_SECRET.
+ * /api/cron dipanggil Vercel Cron dan /api/wa dipanggil gateway WhatsApp,
+ * keduanya tanpa cookie; masing-masing menjaga dirinya sendiri dengan
+ * secret di header.
  */
-const RUTE_PUBLIK = ["/login", "/akses-ditolak", "/auth", "/api/cron"];
+const RUTE_PUBLIK = [
+  "/login",
+  "/akses-ditolak",
+  "/auth",
+  "/api/cron",
+  "/api/wa",
+];
 
 function rutePublik(pathname: string) {
   return RUTE_PUBLIK.some(

@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ReceiptText,
   ScrollText,
+  Sparkles,
   Upload,
   Users,
   type LucideIcon,
@@ -48,6 +49,14 @@ export const MENU: ItemNav[] = [
     ikon: ChartColumn,
     minimal: "user",
     utama: true,
+  },
+  {
+    label: "Tanya AI",
+    labelPendek: "Tanya AI",
+    href: "/chat",
+    ikon: Sparkles,
+    minimal: "user",
+    utama: false,
   },
   {
     label: "Approval",
