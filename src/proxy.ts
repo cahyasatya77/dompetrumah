@@ -3,8 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
 
-/** Rute yang boleh diakses tanpa login. */
-const RUTE_PUBLIK = ["/login", "/akses-ditolak", "/auth"];
+/**
+ * Rute yang boleh diakses tanpa sesi login.
+ * /api/cron dipanggil Vercel Cron tanpa cookie; endpoint itu menjaga
+ * dirinya sendiri dengan CRON_SECRET.
+ */
+const RUTE_PUBLIK = ["/login", "/akses-ditolak", "/auth", "/api/cron"];
 
 function rutePublik(pathname: string) {
   return RUTE_PUBLIK.some(

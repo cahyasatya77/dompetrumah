@@ -18,6 +18,8 @@ psql -d uji_dompetrumah -f supabase/tests/00_stub_supabase.sql
 # 3. Migration yang sebenarnya
 psql -d uji_dompetrumah -f supabase/migrations/0001_fondasi.sql
 psql -d uji_dompetrumah -f supabase/migrations/0002_transaksi.sql
+psql -d uji_dompetrumah -f supabase/migrations/0003_laporan.sql
+psql -d uji_dompetrumah -f supabase/migrations/0004_notifikasi.sql
 
 # 4. Data uji
 psql -d uji_dompetrumah -c "
@@ -37,6 +39,8 @@ insert into public.audit_logs (aksi,tabel,aktor_email) values ('login','auth','a
 psql -d uji_dompetrumah -f supabase/tests/01_uji_rls.sql
 psql -d uji_dompetrumah -f supabase/tests/02_uji_transaksi.sql
 psql -d uji_dompetrumah -f supabase/tests/03_uji_alur_approval.sql
+psql -d uji_dompetrumah -f supabase/tests/04_uji_laporan.sql
+psql -d uji_dompetrumah -f supabase/tests/05_uji_notifikasi.sql
 ```
 
 ## Hasil yang diharapkan
@@ -77,3 +81,30 @@ atau Tolak, untuk memastikan RLS tidak menghalangi penerapan perubahan:
 pencatatan pending menjadi aktif, usulan ubah tertulis ke transaksi, permintaan
 hapus menjadi soft delete, pencatatan yang ditolak bertanda `ditolak`, dan total
 hanya menjumlahkan transaksi berstatus `aktif`.
+
+## 04 — saldo awal dan view rekap (Fase 3)
+
+| Yang diuji | Harapan |
+| --- | --- |
+| User biasa mengisi saldo awal | **ditolak** RLS |
+| Supervisor mengisi saldo awal | berhasil, dan semua anggota bisa membacanya |
+| Periode diisi tanggal 17 | dibulatkan jadi tanggal 1 |
+| Saldo kedua untuk bulan yang sama | **ditolak** unique constraint |
+| View rekap | hanya menghitung transaksi `aktif`, yang terhapus hilang |
+| View dibaca user nonaktif / anon | 0 baris — view menghormati RLS tabel aslinya |
+
+## 05 — notifikasi dan reminder (Fase 4)
+
+| Yang diuji | Harapan |
+| --- | --- |
+| Reminder kedua untuk orang yang sama di hari sama | **ditolak** unique index |
+| Notifikasi jenis lain di hari yang sama | tetap boleh |
+| Supervisor membaca log pengiriman | 0 baris (hanya admin) |
+| User nonaktif menulis log pengiriman | **ditolak** RLS |
+| Kanal atau status di luar daftar | **ditolak** check constraint |
+| Siapa perlu diingatkan | yang mencatat hari ini dikecualikan; transaksi kemarin dan yang sudah dihapus tidak dianggap mencatat; user nonaktif tidak diingatkan |
+
+Pembaca CSV dan normalisasi tautan Google Sheets diuji terpisah di sisi
+TypeScript (koma di dalam kutip, kutip ganda, CRLF, BOM, baris baru di dalam
+sel), termasuk penolakan tautan ke host selain `docs.google.com` seperti
+`localhost` dan alamat metadata internal.

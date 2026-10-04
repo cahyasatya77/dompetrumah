@@ -2,11 +2,14 @@ import { ClipboardCheck, Plus, ReceiptText, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { KolomBulanan } from "@/components/chart/kolom-bulanan";
 import { JudulHalaman } from "@/components/judul-halaman";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { punyaRole, wajibProfil } from "@/lib/auth";
+import { ambilLaporan } from "@/lib/laporan";
+import { bulanIni, labelBulan } from "@/lib/periode";
 import { buatSupabaseServer } from "@/lib/supabase/server";
 import type { ExpenseLengkap } from "@/lib/types";
 import { LABEL_ROLE } from "@/lib/types";
@@ -14,51 +17,33 @@ import { formatRupiah, formatTanggal } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard · DompetRumah" };
 
-/** Batas awal dan akhir bulan berjalan dalam zona Asia/Jakarta. */
-function rentangBulanIni() {
-  const sekarang = new Date();
-  const wib = new Date(sekarang.getTime() + 7 * 60 * 60 * 1000);
-  const tahun = wib.getUTCFullYear();
-  const bulan = wib.getUTCMonth();
-  const awal = new Date(Date.UTC(tahun, bulan, 1)).toISOString().slice(0, 10);
-  const akhir = new Date(Date.UTC(tahun, bulan + 1, 1)).toISOString().slice(0, 10);
-  const label = new Intl.DateTimeFormat("id-ID", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(Date.UTC(tahun, bulan, 1)));
-  return { awal, akhir, label };
-}
-
 export default async function HalamanDashboard() {
   const profil = await wajibProfil();
   const supabase = await buatSupabaseServer();
-  const { awal, akhir, label } = rentangBulanIni();
+  const periode = bulanIni();
+  const label = labelBulan(periode);
 
-  const [{ data: bulanIni }, { data: terbaru }, { count: pending }] =
-    await Promise.all([
-      supabase
-        .from("expenses")
-        .select("total")
-        .eq("status", "aktif")
-        .is("dihapus_pada", null)
-        .gte("tanggal", awal)
-        .lt("tanggal", akhir)
-        .returns<{ total: number }[]>(),
-      supabase
-        .from("expenses")
-        .select("*, categories(nama), units(nama), pencatat:profiles!expenses_dicatat_oleh_fkey(nama, email)")
-        .is("dihapus_pada", null)
-        .order("tanggal", { ascending: false })
-        .order("dibuat_pada", { ascending: false })
-        .limit(5)
-        .returns<ExpenseLengkap[]>(),
-      supabase
-        .from("approval_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending"),
-    ]);
+  // Angka dashboard diambil dari sumber yang sama dengan halaman Laporan,
+  // supaya keduanya mustahil menampilkan total yang berbeda.
+  const [laporan, { data: terbaru }, { count: pending }] = await Promise.all([
+    ambilLaporan(periode),
+    supabase
+      .from("expenses")
+      .select(
+        "*, categories(nama), units(nama), pencatat:profiles!expenses_dicatat_oleh_fkey(nama, email)",
+      )
+      .is("dihapus_pada", null)
+      .order("tanggal", { ascending: false })
+      .order("dibuat_pada", { ascending: false })
+      .limit(5)
+      .returns<ExpenseLengkap[]>(),
+    supabase
+      .from("approval_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
+  ]);
 
-  const total = (bulanIni ?? []).reduce((n, r) => n + Number(r.total), 0);
+  const total = laporan.total;
   const jumlahPending = pending ?? 0;
 
   return (
@@ -78,7 +63,7 @@ export default async function HalamanDashboard() {
         <KartuStat
           ikon={<ReceiptText className="h-5 w-5" aria-hidden />}
           label="Transaksi bulan ini"
-          nilai={String((bulanIni ?? []).length)}
+          nilai={String(laporan.jumlahTransaksi)}
         />
         {punyaRole(profil.role, "supervisor") && (
           <Link href="/approval" className="block">
@@ -91,6 +76,18 @@ export default async function HalamanDashboard() {
           </Link>
         )}
       </div>
+
+      <Card className="mt-5">
+        <CardHeader>
+          <CardTitle>Tren 6 bulan terakhir</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Total pengeluaran per bulan.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <KolomBulanan data={laporan.tren} />
+        </CardContent>
+      </Card>
 
       <Card className="mt-5">
         <CardHeader className="flex items-center justify-between gap-3">

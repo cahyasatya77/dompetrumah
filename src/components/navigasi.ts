@@ -1,10 +1,12 @@
 import {
   Bell,
+  ChartColumn,
   ClipboardCheck,
   FolderTree,
   LayoutDashboard,
   ReceiptText,
   ScrollText,
+  Upload,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -40,6 +42,14 @@ export const MENU: ItemNav[] = [
     utama: true,
   },
   {
+    label: "Laporan",
+    labelPendek: "Laporan",
+    href: "/laporan",
+    ikon: ChartColumn,
+    minimal: "user",
+    utama: true,
+  },
+  {
     label: "Approval",
     labelPendek: "Approval",
     href: "/approval",
@@ -53,7 +63,9 @@ export const MENU: ItemNav[] = [
     href: "/notifikasi",
     ikon: Bell,
     minimal: "user",
-    utama: true,
+    // Di HP notifikasi dijangkau lewat lonceng di header, bukan bottom nav,
+    // supaya Approval tetap kebagian tempat bagi supervisor.
+    utama: false,
   },
   {
     label: "Master Kategori",
@@ -68,6 +80,14 @@ export const MENU: ItemNav[] = [
     labelPendek: "Pengguna",
     href: "/pengguna",
     ikon: Users,
+    minimal: "admin",
+    utama: false,
+  },
+  {
+    label: "Import Data",
+    labelPendek: "Import",
+    href: "/import",
+    ikon: Upload,
     minimal: "admin",
     utama: false,
   },

@@ -1,7 +1,8 @@
 # DompetRumah
 
-Aplikasi web pencatatan pengeluaran rumah tangga. Repo ini berisi **Fase 1 (Fondasi)**
-dan **Fase 2 (Transaksi inti)**.
+Aplikasi web pencatatan pengeluaran rumah tangga. Repo ini berisi **Fase 1 (Fondasi)**,
+**Fase 2 (Transaksi inti)**, **Fase 3 (Laporan & dashboard)**, dan
+**Fase 4 (Notifikasi & integrasi)**.
 
 Semua layanan memakai tier gratis: Supabase (database + auth + storage) dan Vercel.
 
@@ -31,21 +32,43 @@ Semua layanan memakai tier gratis: Supabase (database + auth + storage) dan Verc
 | Halaman approval supervisor + perbandingan sebelum/sesudah | Selesai |
 | Notifikasi in-app dengan badge belum dibaca | Selesai |
 | Daftar transaksi dengan filter bulan, kategori, dan pencatat | Selesai |
-| Laporan bulanan, export, chart | Fase 3 |
-| Email & WhatsApp, reminder, import Sheets | Fase 4 |
+
+**Fase 3 — Laporan & dashboard**
+
+| Fitur | Status |
+| --- | --- |
+| Saldo awal (anggaran) per bulan, diisi supervisor & admin | Selesai |
+| Laporan bulanan: saldo awal − pengeluaran = sisa | Selesai |
+| Rincian per kategori + persentase | Selesai |
+| Grafik perbandingan kategori dan tren 6 bulan | Selesai |
+| Export Excel (.xlsx) dua sheet: ringkasan & rincian | Selesai |
+| Cetak / simpan PDF lewat dialog cetak browser | Selesai |
+
+**Fase 4 — Notifikasi & integrasi**
+
+| Fitur | Status |
+| --- | --- |
+| Email approval lewat Gmail SMTP | Selesai |
+| WhatsApp lewat modul yang bisa ganti provider (Fonnte / log) | Selesai |
+| Reminder harian 21.00 WIB via Vercel Cron | Selesai |
+| Log pengiriman email & WhatsApp (admin) | Selesai |
+| Import kategori, pengguna, dan saldo awal dari Google Sheets | Selesai |
+| Chat AI dan input lewat WhatsApp | Fase 5 |
 
 ### Hak akses yang sudah berlaku
 
 | Aksi | User | Supervisor | Admin |
 | --- | --- | --- | --- |
-| Lihat dashboard & semua transaksi | Ya | Ya | Ya |
+| Lihat dashboard, laporan & semua transaksi | Ya | Ya | Ya |
 | Input pengeluaran | Ya* | Ya | Ya |
+| Isi saldo awal bulanan | Tidak | Ya | Ya |
 | Ubah / hapus transaksi | Request saja | Ya | Ya |
 | Setujui / tolak request | Tidak | Ya | Ya |
 | Kelola master kategori | Tidak | Ya | Ya |
 | Hapus kategori permanen | Tidak | Tidak | Ya |
 | Kelola pengguna & role | Tidak | Tidak | Ya |
-| Lihat audit log | Tidak | Tidak | Ya |
+| Import dari Google Sheets | Tidak | Tidak | Ya |
+| Lihat audit log & log pengiriman | Tidak | Tidak | Ya |
 
 \* Input user dengan total di atas Rp500.000 berstatus PENDING sampai disetujui
 supervisor, dan belum dihitung dalam total pengeluaran.
@@ -64,6 +87,37 @@ sendiri.
 Penghapusan memakai soft delete, sehingga data tetap ada untuk audit dan
 laporan historis.
 
+### Notifikasi dan reminder
+
+Setiap notifikasi disimpan sebagai pesan in-app, lalu diteruskan ke email dan
+WhatsApp. Pengiriman berjalan **setelah** respons dikirim ke pengguna
+(memakai `after()` dari Next.js), jadi orang yang menekan Simpan tidak
+menunggu koneksi SMTP. Hasil tiap pengiriman dicatat di tabel
+`notification_deliveries` — kalau email gagal, kegagalannya terlihat, bukan
+hilang di log.
+
+Modul WhatsApp sengaja ditaruh di balik satu antarmuka (`src/lib/kirim/whatsapp.ts`).
+Selama `WA_PROVIDER` belum diisi, pesan hanya dicatat ke konsol dan aplikasi
+berjalan normal. Saat produksi nanti, tambahkan driver WhatsApp Cloud API resmi
+di file itu — tidak ada kode pemanggil yang perlu diubah.
+
+Reminder harian berjalan lewat Vercel Cron pada pukul 14.00 UTC = 21.00 WIB
+(lihat `vercel.json`). Endpoint-nya memakai service role sehingga dilindungi
+`CRON_SECRET`; tanpa header yang benar, permintaan ditolak 401. Satu orang
+hanya bisa menerima satu reminder per hari — dijaga unique index di database,
+bukan hanya oleh kode, sehingga cron yang terpanggil dua kali tidak mengirim
+pesan ganda.
+
+### Import dari Google Sheets
+
+Sheet dibaca sebagai CSV publik, tanpa kredensial. Aplikasi hanya mau mengambil
+alamat di `docs.google.com` — pembatasan ini penting, karena tanpa itu kolom
+tautan bisa dipakai untuk menyuruh server memanggil alamat internal.
+
+Setiap import selalu melewati pratinjau: tiap baris ditandai *baru*,
+*diperbarui*, *lewati* (sudah ada), atau *galat* beserta alasannya. Hanya baris
+baru dan yang diperbarui yang disimpan.
+
 ---
 
 ## Langkah setup
@@ -79,8 +133,10 @@ laporan historis.
 
 1. Di dashboard Supabase, buka menu **SQL Editor** → **New query**.
 2. Salin seluruh isi `supabase/migrations/0001_fondasi.sql`, tempel, klik **Run**.
-3. Ulangi untuk `supabase/migrations/0002_transaksi.sql`. File ini sekaligus
-   membuat bucket Storage privat bernama `struk` untuk lampiran.
+3. Ulangi untuk `supabase/migrations/0002_transaksi.sql` (sekaligus membuat
+   bucket Storage privat `struk` untuk lampiran) lalu
+   `supabase/migrations/0003_laporan.sql`, lalu
+   `supabase/migrations/0004_notifikasi.sql`.
 4. Buka `supabase/seed.sql`, **ganti email pada baris pertama dengan email Google
    Anda**, lalu jalankan juga di SQL Editor. Email ini menjadi akun admin pertama.
 
@@ -125,6 +181,17 @@ Isi dari **Project Settings → API** di Supabase:
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role key (**rahasia**, server saja) |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` saat lokal |
 
+Untuk Fase 4, tambahkan juga (semuanya boleh dikosongkan dulu — aplikasi tetap
+jalan, pesan hanya dicatat ke log server):
+
+| Variabel | Dari mana |
+| --- | --- |
+| `GMAIL_USER` | alamat Gmail pengirim |
+| `GMAIL_APP_PASSWORD` | App Password 16 huruf dari <https://myaccount.google.com/apppasswords> (butuh verifikasi 2 langkah aktif, **bukan** password Gmail biasa) |
+| `WA_PROVIDER` | `log` selama belum pakai gateway, atau `fonnte` |
+| `FONNTE_TOKEN` | token dari fonnte.com, hanya bila `WA_PROVIDER=fonnte` |
+| `CRON_SECRET` | kata sandi acak buatan sendiri, untuk melindungi endpoint reminder |
+
 ### 5. Jalankan di lokal
 
 ```bash
@@ -143,6 +210,15 @@ Anda masukkan di `seed.sql`.
    Vercel, misalnya `https://dompetrumah.vercel.app`).
 4. Deploy, lalu kembali ke Supabase **Authentication → URL Configuration** untuk
    menambahkan URL Vercel pada Site URL dan Redirect URLs.
+5. Reminder harian aktif otomatis setelah deploy — Vercel membaca `vercel.json`.
+   Pastikan `CRON_SECRET` sudah diisi di environment variables Vercel, kalau
+   tidak endpoint-nya menolak semua panggilan.
+
+Untuk menguji reminder tanpa menunggu pukul 21.00:
+
+```bash
+curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/cron/reminder
+```
 
 ---
 
@@ -177,17 +253,28 @@ src/
     akses-ditolak/              halaman penolakan
     (app)/                      halaman yang butuh login
       layout.tsx                cek profil aktif, bungkus AppShell
-      dashboard/                ringkasan + transaksi terbaru
+      dashboard/                ringkasan, tren, transaksi terbaru
+      laporan/                  laporan bulanan, saldo awal, grafik
+      import/                   import Google Sheets (admin)
       pengeluaran/              daftar, catat baru, detail, request ubah/hapus
       approval/                 antrean persetujuan (supervisor & admin)
       notifikasi/               notifikasi in-app
       kategori/                 master kategori (supervisor & admin)
       pengguna/                 master pengguna (admin)
       audit/                    audit log (admin)
+    cetak/laporan/              tampilan khusus cetak (tanpa sidebar)
+    api/laporan/excel/          route export .xlsx
+    api/cron/reminder/          endpoint reminder harian (Vercel Cron)
   components/                   AppShell, navigasi, tema, komponen UI
+    chart/                      grafik kategori dan tren bulanan
   lib/
     auth.ts                     wajibProfil / wajibRole
     audit.ts                    penulisan audit log
+    laporan.ts                  sumber tunggal angka laporan
+    periode.ts                  olah periode "YYYY-MM"
+    csv.ts                      pembaca CSV dan normalisasi tautan Sheets
+    kirim/email.ts              pengirim email (Gmail SMTP)
+    kirim/whatsapp.ts           pengirim WhatsApp (bisa ganti provider)
     notifikasi.ts               pengiriman notifikasi in-app
     kompres.ts                  kompresi foto struk di browser
     konstanta.ts                batas approval, bucket, batas ukuran file
@@ -215,6 +302,4 @@ src/
 
 | Fase | Isi |
 | --- | --- |
-| 3 | Laporan bulanan + opening balance, export Excel/PDF, dashboard chart |
-| 4 | Notifikasi email & WhatsApp, reminder 21.00 WIB, import Google Sheets |
-| 5 | Chat AI, input pengeluaran via WhatsApp |
+| 5 | Chat AI untuk bertanya soal data, lalu input pengeluaran via WhatsApp |

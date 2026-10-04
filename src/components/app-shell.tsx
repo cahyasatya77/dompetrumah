@@ -98,6 +98,22 @@ export function AppShell({
           <span className="text-sm font-semibold">DompetRumah</span>
         </div>
         <div className="flex items-center gap-1">
+          <Link
+            href="/notifikasi"
+            aria-label={
+              belumDibaca > 0
+                ? `Notifikasi, ${belumDibaca} belum dibaca`
+                : "Notifikasi"
+            }
+            className="relative rounded-[var(--radius-app)] p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <Bell className="h-4 w-4" aria-hidden />
+            {belumDibaca > 0 && (
+              <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                {belumDibaca > 9 ? "9+" : belumDibaca}
+              </span>
+            )}
+          </Link>
           <TemaToggle />
           <form action="/auth/keluar" method="post">
             <button
@@ -159,11 +175,6 @@ export function AppShell({
                 )}
               >
                 <m.ikon className="h-5 w-5" aria-hidden />
-                {m.href === "/notifikasi" && belumDibaca > 0 && (
-                  <span className="absolute top-1.5 right-1/2 translate-x-3 rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
-                    {belumDibaca > 9 ? "9+" : belumDibaca}
-                  </span>
-                )}
                 {m.labelPendek}
               </Link>
             </li>

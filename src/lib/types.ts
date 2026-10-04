@@ -120,6 +120,30 @@ export type Notifikasi = {
   dibuat_pada: string;
 };
 
+export type OpeningBalance = {
+  id: string;
+  periode: string;
+  saldo_awal: number;
+  catatan: string | null;
+  diisi_oleh: string | null;
+  dibuat_pada: string;
+  diperbarui_pada: string;
+};
+
+export type RekapBulanan = {
+  periode: string;
+  total: number;
+  jumlah_transaksi: number;
+};
+
+export type RekapKategori = {
+  periode: string;
+  category_id: string;
+  kategori: string;
+  total: number;
+  jumlah_transaksi: number;
+};
+
 /** Hasil balikan server action untuk form. */
 export type HasilAksi = {
   ok: boolean;
